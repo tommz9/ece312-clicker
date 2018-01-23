@@ -19,7 +19,9 @@ setuptools.setup(
     packages=setuptools.find_packages('src'),  # include all packages under src
     package_dir={'': 'src'},   # tell distutils packages are under src
 
-    install_requires=[],
+    install_requires=[
+        'click'
+    ],
 
     classifiers=[
         'Development Status :: 2 - Pre-Alpha',

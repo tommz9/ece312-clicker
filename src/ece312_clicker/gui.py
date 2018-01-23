@@ -1,13 +1,22 @@
 import tkinter as tk
 from tkinter import ttk
 import logging
+import click
 
 from .server import ClickerServer
 from .server_messaging import ServerMessaging
 from .poll import Poll, PollError
 
 class Application(ttk.Frame):
+    """The GUI class for this application.
 
+    The communication between the Tkinter GUI and the threaded TCP server
+    is done through a double queue represented by a class Server Messaging.
+    The GUI checks the queue periodically for new messages to avoid blocking
+    the GUI thread.
+    """
+
+    """The period for checking the comminication queue."""
     MESSAGING_CHECK_PERIOD = 100
 
     def __init__(self, server, server_messanging, master=None, poll=None):
@@ -112,14 +121,26 @@ class Application(ttk.Frame):
         self.after(Application.MESSAGING_CHECK_PERIOD,
                    self.periodic_messaging_check)
 
-if __name__ == "__main__":
-    logging.basicConfig(level=logging.DEBUG)
+
+@click.command()
+@click.option('--host', default='0.0.0.0', help='The address the TCP server listens on.')
+@click.option('--port', default=10000, help='The port the TCP server listens on.')
+@click.option('--verbose', is_flag=True, default=False, help='Enables additional debug prints.')
+def main(host, port, verbose):
+
+    if verbose:
+        logging.basicConfig(level=logging.DEBUG)
+    else:
+        logging.basicConfig(level=logging.INFO)
 
 
     server_messanging = ServerMessaging()
-    server = ClickerServer('192.168.1.145', 10000, server_messanging)
+    server = ClickerServer(host, port, server_messanging)
 
 
     root = tk.Tk()
     app = Application(server, server_messanging, master=root)
     app.mainloop()
+
+if __name__ == '__main__':
+    main()
