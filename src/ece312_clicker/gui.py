@@ -5,15 +5,16 @@ import logging
 from .server import ClickerServer
 from .server_messaging import ServerMessaging
 from .poll import Poll, PollError
+from .questions import poll_questions
 
-class Application(ttk.Frame):
+class PoolWindow(ttk.Frame):
 
     MESSAGING_CHECK_PERIOD = 100
 
     def __init__(self, server, server_messanging, master=None, poll=None):
         super().__init__(master, padding=(10, 10, 12, 12))
 
-        self.logger = logging.getLogger('GUI')
+        self.logger = logging.getLogger('PoolWindow')
 
         self.grid(column=0, row=0, sticky=(tk.N, tk.S, tk.E, tk.W))
         master.columnconfigure(0, weight=1)
@@ -38,7 +39,7 @@ class Application(ttk.Frame):
 
         self.create_widgets()
 
-        self.after(Application.MESSAGING_CHECK_PERIOD, 
+        self.after(PoolWindow.MESSAGING_CHECK_PERIOD,
                    self.periodic_messaging_check)
 
     def create_widgets(self):
@@ -109,8 +110,56 @@ class Application(ttk.Frame):
     def periodic_messaging_check(self):
         # self.logger.debug('Checking the queue')
         self.server_messaging.gui_check()
-        self.after(Application.MESSAGING_CHECK_PERIOD,
+        self.after(PoolWindow.MESSAGING_CHECK_PERIOD,
                    self.periodic_messaging_check)
+
+class PollSelectionWindow(ttk.Frame):
+    def __init__(self, master=None):
+        """"""
+        super().__init__(master, padding=(10, 10, 12, 12))
+
+        self.logger = logging.getLogger('PollSelectionWindow')
+
+        self.grid(column=0, row=0, sticky=(tk.N, tk.S, tk.E, tk.W))
+        master.columnconfigure(0, weight=1)
+        master.rowconfigure(0, weight=1)
+
+        self.check_ip_variable = tk.IntVar()
+        self.check_ip_variable.set(1)
+
+        self.create_widgets()
+
+    def create_widgets(self):
+
+        first_row_padding = 20
+
+        label = ttk.Label(self, text='Question: ')
+        label.grid(row=1, column=1, pady=(0, first_row_padding), sticky='E')
+
+        self.question_combo_box = ttk.Combobox(self, values=list(poll_questions.keys()), state='readonly')
+        self.question_combo_box.current(0)
+        self.question_combo_box.grid(row=1, column=2, columnspan=2, pady=(0, first_row_padding))
+
+        self.ip_checking_checkbox = ttk.Checkbutton(self, text='IP Checking Enable', variable=self.check_ip_variable)
+        self.ip_checking_checkbox.grid(row=3, column=1, columnspan=3, sticky='W')
+
+        self.open_poll_button = ttk.Button(self, text='Open Poll', command=self.open_poll_clicked)
+        self.open_poll_button.grid(row=10, column=1)
+
+        self.close_poll_button = ttk.Button(self, text='Close Poll')
+        self.close_poll_button.grid(row=10, column=2)
+
+        self.exit_button = ttk.Button(self, text='Exit application')
+        self.exit_button.grid(row=10, column=3)
+
+    def open_poll_clicked(self):
+        question = self.question_combo_box.get()
+        answers = poll_questions[question]
+
+        self.logger.info('Poll selected. Question: "%s", Answers: %s', question, answers)
+
+        print(question, answers)
+
 
 if __name__ == "__main__":
     logging.basicConfig(level=logging.DEBUG)
@@ -121,5 +170,7 @@ if __name__ == "__main__":
 
 
     root = tk.Tk()
-    app = Application(server, server_messanging, master=root)
+    #app = PoolWindow(server, server_messanging, master=root)
+
+    app = PollSelectionWindow(master=root)
     app.mainloop()
