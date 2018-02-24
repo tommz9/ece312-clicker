@@ -143,6 +143,7 @@ class ClickerServer:
 
         with self.connections_lock:
 
+            # Iterate reversed because there might be old connections at the front
             for connection in reversed(self.connections):
                 if ip == connection.client_address[0]:
                     connection.send_message(message)
