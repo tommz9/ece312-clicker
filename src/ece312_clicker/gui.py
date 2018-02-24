@@ -191,6 +191,8 @@ def main(host, port, verbose):
 
     server_messaging = ServerMessaging()
     server = ClickerServer(host, port, server_messaging)
+    
+    server_messaging.server_register_callback('broadcast_message', server.broadcast)
 
     poll_protocol = PollProtocol(
         lambda ip, message: server_messaging.gui_post('send_message', (ip, message)),
@@ -206,7 +208,6 @@ def main(host, port, verbose):
     server_messaging.gui_register_callbacks(
         'disconnected', lambda message: None)
 
-    server_messaging.server_register_callback('broadcast_message', server.broadcast)
 
     root = tk.Tk()
     #app = PoolWindow(server, server_messanging, master=root)
