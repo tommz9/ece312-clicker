@@ -7,7 +7,7 @@ from .server import ClickerServer
 from .server_messaging import ServerMessaging
 from .poll import Poll, PollError
 from .questions import poll_questions
-
+from .protocol import PollProtocol
 
 class PoolWindow(ttk.Frame):
 
@@ -22,7 +22,7 @@ class PoolWindow(ttk.Frame):
     """The period for checking the comminication queue."""
     MESSAGING_CHECK_PERIOD = 100
 
-    def __init__(self, server, server_messanging, master=None, poll=None):
+    def __init__(self, on_close_callback, poll, master=None):
         super().__init__(master, padding=(10, 10, 12, 12))
 
         self.logger = logging.getLogger('PoolWindow')
@@ -31,27 +31,17 @@ class PoolWindow(ttk.Frame):
         master.columnconfigure(0, weight=1)
         master.rowconfigure(0, weight=1)
 
-        self.server = server
-        self.server_messaging = server_messanging
-
-        server_messanging.gui_register_callbacks(
-            'received', self.message_received)
-
-        server_messanging.gui_register_callbacks(
-            'connected', self.client_connected)
-        
-        server_messanging.gui_register_callbacks(
-            'disconnected', self.client_disconnected)
-
-        if not poll:
-            self.poll = Poll('What is your favorite?', ['I2C', 'SPI', 'UART'])
-        else:
-            self.poll = poll
+        self.poll = poll
+        poll.register_vote_updated_callback(self.update_poll)
 
         self.create_widgets()
 
-        self.after(PoolWindow.MESSAGING_CHECK_PERIOD,
-                   self.periodic_messaging_check)
+        self.on_close_callback = on_close_callback
+        self.master.protocol("WM_DELETE_WINDOW", self.close_window)
+
+    def close_window(self):
+        self.on_close_callback()
+        self.master.destroy()
 
     def create_widgets(self):
 
@@ -75,7 +65,7 @@ class PoolWindow(ttk.Frame):
         answer_c = ttk.Label(self, text='N/A', style='answer.TLabel')
 
         answer_a.grid(column=0, row=1)
-        answer_b.grid(column=1, row=1)
+        answer_b.grid(column=1, row=1, padx=50)
         answer_c.grid(column=2, row=1)
 
         self.answer_labels = [answer_a, answer_b, answer_c]
@@ -97,26 +87,7 @@ class PoolWindow(ttk.Frame):
             self.answer_labels[n]['text'] = self.poll.answers[n]
             self.counter_labels[n]['text'] = '{}'.format(
                 self.poll.get_votes(n))
-    
-    def message_received(self, message):
-        ip, data = message
-        self.logger.info('Data received from %s: "%s"', ip, data)
-        
-        try:
-            self.poll.vote(ip, data.strip())
-            self.update_poll()
-        except PollError as e:
-            self.logger.exception(e)
-    
-    def client_connected(self, ip):
-        self.logger.info('Client connected %s', ip)
-        # TODO
-        pass
 
-    def client_disconnected(self, ip):
-        self.logger.info('Client disconnected %s', ip)
-        # TODO
-        pass
 
     def periodic_messaging_check(self):
         # self.logger.debug('Checking the queue')
@@ -124,11 +95,13 @@ class PoolWindow(ttk.Frame):
         self.after(PoolWindow.MESSAGING_CHECK_PERIOD,
                    self.periodic_messaging_check)
 
+
 class PollSelectionWindow(ttk.Frame):
-    def __init__(self, master=None):
+    def __init__(self, poll_protocol, master=None):
         """"""
         super().__init__(master, padding=(10, 10, 12, 12))
 
+        self.poll_protocol = poll_protocol
         self.logger = logging.getLogger('PollSelectionWindow')
 
         self.grid(column=0, row=0, sticky=(tk.N, tk.S, tk.E, tk.W))
@@ -147,7 +120,10 @@ class PollSelectionWindow(ttk.Frame):
         label = ttk.Label(self, text='Question: ')
         label.grid(row=1, column=1, pady=(0, first_row_padding), sticky='E')
 
-        self.question_combo_box = ttk.Combobox(self, values=list(poll_questions.keys()), state='readonly')
+        self.question_combo_box = ttk.Combobox(self,
+                                               values=list(poll_questions.keys()),
+                                               state='readonly',
+                                               width=30)
         self.question_combo_box.current(0)
         self.question_combo_box.grid(row=1, column=2, columnspan=2, pady=(0, first_row_padding))
 
@@ -157,11 +133,13 @@ class PollSelectionWindow(ttk.Frame):
         self.open_poll_button = ttk.Button(self, text='Open Poll', command=self.open_poll_clicked)
         self.open_poll_button.grid(row=10, column=1)
 
-        self.close_poll_button = ttk.Button(self, text='Close Poll')
+        self.close_poll_button = ttk.Button(self, text='Close Poll', command=self.close_poll_clicked)
         self.close_poll_button.grid(row=10, column=2)
 
         self.exit_button = ttk.Button(self, text='Exit application')
         self.exit_button.grid(row=10, column=3)
+
+        self.set_state('inactive')
 
     def open_poll_clicked(self):
         question = self.question_combo_box.get()
@@ -169,7 +147,35 @@ class PollSelectionWindow(ttk.Frame):
 
         self.logger.info('Poll selected. Question: "%s", Answers: %s', question, answers)
 
-        print(question, answers)
+        poll = Poll(question, answers)
+        self.poll_protocol.activate(poll)
+
+        self.set_state('active')
+
+        def on_close_callback():
+            self.set_state('inactive')
+            self.poll_protocol.deactivate()
+
+        toplevel = tk.Toplevel(self.master)
+        self.pool_window = PoolWindow(
+            master=toplevel,
+            poll=poll,
+            on_close_callback=on_close_callback
+        )
+
+    def close_poll_clicked(self):
+        self.logger.debug('Closing the poll window.')
+        self.pool_window.close_window()
+
+    def set_state(self, state):
+        if state == 'inactive':
+            self.open_poll_button['state'] = tk.NORMAL
+            self.close_poll_button['state'] = tk.DISABLED
+        elif state == 'active':
+            self.open_poll_button['state'] = tk.DISABLED
+            self.close_poll_button['state'] = tk.NORMAL
+        else:
+            raise RuntimeError('Invalid state {}'.format(state))
 
 
 @click.command()
@@ -183,15 +189,38 @@ def main(host, port, verbose):
     else:
         logging.basicConfig(level=logging.INFO)
 
-    server_messanging = ServerMessaging()
-    server = ClickerServer(host, port, server_messanging)
+    server_messaging = ServerMessaging()
+    server = ClickerServer(host, port, server_messaging)
 
+    poll_protocol = PollProtocol(
+        lambda ip, message: server_messaging.gui_post('send_message', (ip, message)),
+        lambda message: server_messaging.gui_post('broadcast_message', message)
+    )
+
+    server_messaging.gui_register_callbacks(
+        'received', lambda message: poll_protocol.on_data(message[0], message[1]))
+
+    server_messaging.gui_register_callbacks(
+        'connected', poll_protocol.on_new_connection)
+
+    server_messaging.gui_register_callbacks(
+        'disconnected', lambda message: None)
+
+    server_messaging.server_register_callback('broadcast_message', server.broadcast)
 
     root = tk.Tk()
     #app = PoolWindow(server, server_messanging, master=root)
 
-    app = PollSelectionWindow(master=root)
+    def periodic_messaging_check():
+        server_messaging.gui_check()
+        root.after(100, periodic_messaging_check)
+
+    root.after(100, periodic_messaging_check)
+
+    app = PollSelectionWindow(poll_protocol, master=root)
     app.mainloop()
+
+    server.stop()
 
 if __name__ == '__main__':
     main()

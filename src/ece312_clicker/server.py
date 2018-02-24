@@ -77,10 +77,10 @@ class ClickerServer:
 
     Uses the threaded TCP server from the standard library to listen for TCP
     connections. Once a TCP connection is made a new thread is created to
-    handle the incomming data and the connection is also registered in a list
+    handle the incoming data and the connection is also registered in a list
     withing this object.
 
-    The incomming data is passed to this object method handle_message().
+    The incoming data is passed to this object method handle_message().
     Outgoing data is passed to the connections that have been registered
     in the connections list.
 
@@ -88,7 +88,7 @@ class ClickerServer:
     connection.
     """
 
-    def __init__(self, host, port, server_messanging):
+    def __init__(self, host, port, server_messaging):
         """Initialize the server.
 
         The server will be started on (host, port) as a background thread.
@@ -101,7 +101,12 @@ class ClickerServer:
         self.connections = []
         self.connections_lock = threading.Lock()
 
-        self.server_messanging = server_messanging
+        self.should_stop = False
+
+        self.server_messaging = server_messaging
+        self.server_messaging.server_register_callback('send_message', self.send_message)
+        self.server_checking_thread = threading.Thread(target=self.message_reader)
+        self.server_checking_thread.start()
 
         self._setup_server()
 
@@ -124,6 +129,23 @@ class ClickerServer:
         self.logger.info('Server thread running in the background.')
         self.logger.info('TCP/IP: %s', self.server.server_address)
 
+    def message_reader(self):
+
+        logging.getLogger('Server Messages Checker').info('Thread starting')
+        while not self.should_stop:
+            self.server_messaging.server_wait(timeout=0.1)
+
+    def send_message(self, message_from_gui):
+        ip, message = message_from_gui
+        self.logger.debug('Sending a message "%s" to %s', message, ip)
+
+        with self.connections_lock:
+
+            for connection in self.connections:
+                if ip == connection.client_address[0]:
+                    connection.send_message(message)
+                    break
+
     def register_connection(self, connection):
         """Register a connection with the ClickerServer.
 
@@ -132,7 +154,7 @@ class ClickerServer:
         """
         with self.connections_lock:
             self.connections.append(connection)
-            self.server_messanging.server_post(
+            self.server_messaging.server_post(
                 'connected', connection.client_address[0])
 
     def deregister_connection(self, connection):
@@ -142,12 +164,14 @@ class ClickerServer:
         """
         with self.connections_lock:
             self.connections.remove(connection)
-            self.server_messanging.server_post(
+            self.server_messaging.server_post(
                 'disconnected', connection.client_address[0])
 
     def stop(self):
         """Finalize the server."""
         # TODO: Kill all open connections
+
+        self.should_stop = True
         self.server.shutdown()
         self.server.server_close()
 
@@ -173,7 +197,7 @@ class ClickerServer:
         received.
         """
         self.logger.info('Handling message from %s: "%s"', ip, message)
-        self.server_messanging.server_post('received', (ip, message))
+        self.server_messaging.server_post('received', (ip, message))
 
     def connected_clients_count(self):
         """Return the number of connected clients."""

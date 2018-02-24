@@ -22,6 +22,13 @@ class ServerMessaging:
         except Empty:
             pass
 
+    def server_wait(self, timeout=None):
+        try:
+            subject, message = self.server_queue.get(timeout=timeout)
+            self.server_callbacks[subject](message)
+        except Empty:
+            pass
+
     def server_post(self, subject, message):
         self.logger.debug('Server posted a message "%s"', subject)
         self.gui_queue.put((subject, message))
@@ -29,6 +36,10 @@ class ServerMessaging:
     def gui_register_callbacks(self, subject, callback):
         self.logger.debug('GUI registered a callback "%s"', subject)
         self.gui_callbacks[subject] = callback
+
+    def gui_deregister_callbacks(self, subject):
+        self.logger.debug('GUI deregistered a callback "%s"', subject)
+        del self.gui_callbacks[subject]
 
     def gui_check(self):
         try:
