@@ -62,6 +62,8 @@ class ClickerConnectionHandler(socketserver.StreamRequestHandler):
 
         except BrokenPipeError:
             self.logger.info('Connection broken')
+        except ConnectionResetError:
+            self.logger.info('Connection reset error')
 
     def send_message(self, message):
         """Send the message to the client.
@@ -141,7 +143,7 @@ class ClickerServer:
 
         with self.connections_lock:
 
-            for connection in self.connections:
+            for connection in reversed(self.connections):
                 if ip == connection.client_address[0]:
                     connection.send_message(message)
                     break
