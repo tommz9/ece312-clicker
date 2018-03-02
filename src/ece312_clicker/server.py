@@ -64,6 +64,8 @@ class ClickerConnectionHandler(socketserver.StreamRequestHandler):
             self.logger.info('Connection broken')
         except ConnectionResetError:
             self.logger.info('Connection reset error')
+        except OSError:
+            self.logger.info('OSError')
 
     def send_message(self, message):
         """Send the message to the client.
