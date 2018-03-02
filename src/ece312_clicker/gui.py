@@ -9,7 +9,8 @@ from .poll import Poll, PollError
 from .questions import poll_questions
 from .protocol import PollProtocol
 
-class PoolWindow(ttk.Frame):
+
+class PollWindow(ttk.Frame):
 
     """The GUI class for this application.
 
@@ -25,7 +26,7 @@ class PoolWindow(ttk.Frame):
     def __init__(self, on_close_callback, poll, master=None):
         super().__init__(master, padding=(10, 10, 12, 12))
 
-        self.logger = logging.getLogger('PoolWindow')
+        self.logger = logging.getLogger('PollWindow')
 
         self.grid(column=0, row=0, sticky=(tk.N, tk.S, tk.E, tk.W))
         master.columnconfigure(0, weight=1)
@@ -88,11 +89,10 @@ class PoolWindow(ttk.Frame):
             self.counter_labels[n]['text'] = '{}'.format(
                 self.poll.get_votes(n))
 
-
     def periodic_messaging_check(self):
         # self.logger.debug('Checking the queue')
         self.server_messaging.gui_check()
-        self.after(PoolWindow.MESSAGING_CHECK_PERIOD,
+        self.after(PollWindow.MESSAGING_CHECK_PERIOD,
                    self.periodic_messaging_check)
 
 
@@ -157,7 +157,7 @@ class PollSelectionWindow(ttk.Frame):
             self.poll_protocol.deactivate()
 
         toplevel = tk.Toplevel(self.master)
-        self.pool_window = PoolWindow(
+        self.poll_window = PollWindow(
             master=toplevel,
             poll=poll,
             on_close_callback=on_close_callback
@@ -165,7 +165,7 @@ class PollSelectionWindow(ttk.Frame):
 
     def close_poll_clicked(self):
         self.logger.debug('Closing the poll window.')
-        self.pool_window.close_window()
+        self.poll_window.close_window()
 
     def set_state(self, state):
         if state == 'inactive':
@@ -178,9 +178,9 @@ class PollSelectionWindow(ttk.Frame):
             raise RuntimeError('Invalid state {}'.format(state))
 
 
-@click.command()
+@click.command('The server application for ECE312 Lab 3')
 @click.option('--host', default='0.0.0.0', help='The address the TCP server listens on.')
-@click.option('--port', default=10000, help='The port the TCP server listens on.')
+@click.option('--port', default=2000, help='The port the TCP server listens on.')
 @click.option('--verbose', is_flag=True, default=False, help='Enables additional debug prints.')
 def main(host, port, verbose):
 
@@ -209,7 +209,6 @@ def main(host, port, verbose):
     server_messaging.server_register_callback('broadcast_message', server.broadcast)
 
     root = tk.Tk()
-    #app = PoolWindow(server, server_messanging, master=root)
 
     def periodic_messaging_check():
         server_messaging.gui_check()
@@ -221,6 +220,7 @@ def main(host, port, verbose):
     app.mainloop()
 
     server.stop()
+
 
 if __name__ == '__main__':
     main()
