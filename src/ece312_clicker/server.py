@@ -47,12 +47,12 @@ class ClickerConnectionHandler(socketserver.StreamRequestHandler):
         try:
             while True:
                 # Wait for a line of data and strip all white characters
-                data = self.rfile.readline().strip()
+                data = self.rfile.readline()
                 if not data:
                     break
 
                 # Decode the incomming data
-                data = data.decode('ASCII')
+                data = data.strip().decode('ASCII')
 
                 self.logger.debug('Data received: "%s"', data)
 
@@ -173,11 +173,17 @@ class ClickerServer:
 
     def stop(self):
         """Finalize the server."""
-        # TODO: Kill all open connections
 
         self.should_stop = True
         self.server.shutdown()
         self.server.server_close()
+
+        for connection in self.connections:
+            try:
+                connection.connection.shutdown(1)
+            except Exception:
+                # Ignore errors and try to close all connections
+                pass
 
     def broadcast(self, message):
         """Send a message to all connected clients."""

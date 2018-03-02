@@ -2,6 +2,7 @@ import tkinter as tk
 from tkinter import ttk
 import logging
 import click
+import signal
 
 from .server import ClickerServer
 from .server_messaging import ServerMessaging
@@ -110,6 +111,9 @@ class PollSelectionWindow(ttk.Frame):
 
         self.check_ip_variable = tk.IntVar()
         self.check_ip_variable.set(1)
+
+        # Handle SIGINT
+        signal.signal(signal.SIGINT, lambda a, b: master.destroy())
 
         self.create_widgets()
 
