@@ -127,7 +127,8 @@ class PollSelectionWindow(ttk.Frame):
         self.question_combo_box.current(0)
         self.question_combo_box.grid(row=1, column=2, columnspan=2, pady=(0, first_row_padding))
 
-        self.ip_checking_checkbox = ttk.Checkbutton(self, text='IP Checking Enable', variable=self.check_ip_variable)
+        self.ip_checking_checkbox = ttk.Checkbutton(self, text='IP Checking Enable', variable=self.check_ip_variable,
+                                                    state=tk.DISABLED)
         self.ip_checking_checkbox.grid(row=3, column=1, columnspan=3, sticky='W')
 
         self.open_poll_button = ttk.Button(self, text='Open Poll', command=self.open_poll_clicked)
@@ -136,7 +137,7 @@ class PollSelectionWindow(ttk.Frame):
         self.close_poll_button = ttk.Button(self, text='Close Poll', command=self.close_poll_clicked)
         self.close_poll_button.grid(row=10, column=2)
 
-        self.exit_button = ttk.Button(self, text='Exit application')
+        self.exit_button = ttk.Button(self, text='Exit application', command=self.master.destroy)
         self.exit_button.grid(row=10, column=3)
 
         self.set_state('inactive')
