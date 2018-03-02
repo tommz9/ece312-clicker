@@ -116,10 +116,9 @@ class ClickerServer:
 
     def _setup_server(self):
         """Private method to start the TCP server."""
+        socketserver.ThreadingTCPServer.allow_reuse_address = True
         self.server = socketserver.ThreadingTCPServer(
             (self.host, self.port), ClickerConnectionHandler)
-
-        self.server.allow_reuse_address = True
 
         # Register itself with the TCP server. The TCP handlers have access to
         # this reference and therefore can communicate with the ClickerServer
