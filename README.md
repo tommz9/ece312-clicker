@@ -13,7 +13,6 @@ This package containts two additional servers besides the voting server:
  - Toggle Server: A TCP server that periodically sends "active" and "inactive" to connected clients
  
 ## Usage
------
 
 All examples assume that the application is installed in a virtual environmet.
 
@@ -51,7 +50,6 @@ The default TCP ports are as follows:
 | Toggle server | 2002 |
 
 ## Installation
-------------
 
 Example of installation in a separate virtual environment:
 
